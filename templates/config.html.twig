@@ -1,0 +1,124 @@
+{#
+ # Monedas - pestaña "Moneda" en el formulario de entidades.
+ # @license GPL-3.0-or-later
+ #}
+
+<div class="monedas-config card m-2" data-monedas-config-form>
+   <div class="card-header">
+      <h3 class="card-title">
+         <i class="ti ti-coin me-2" aria-hidden="true"></i>
+         {{ __('Moneda local y formato de visualización', 'monedas') }}
+      </h3>
+   </div>
+
+   <div class="card-body">
+      {% if not is_stored %}
+         <div class="alert alert-info" role="status">
+            {% if inherited_name %}
+               {{ __('Esta entidad hereda la configuración de "%s". Si guardas, tendrá su propia configuración.', 'monedas')|format(inherited_name) }}
+            {% else %}
+               {{ __('Esta entidad usa los valores por defecto.', 'monedas') }}
+            {% endif %}
+         </div>
+      {% endif %}
+
+      <form method="post" action="{{ form_url }}">
+         <input type="hidden" name="_glpi_csrf_token" value="{{ csrf_token() }}">
+         <input type="hidden" name="entities_id" value="{{ entities_id }}">
+
+         <div class="row g-4">
+            <div class="col-lg-8">
+               <div class="row g-3">
+                  <div class="col-md-6">
+                     <label class="form-label" for="monedas_currency">{{ __('Moneda local', 'monedas') }}</label>
+                     <select class="form-select" id="monedas_currency" name="currency_code" data-monedas-field="currency_code" {{ canedit ? '' : 'disabled' }}>
+                        {% for code, c in currencies %}
+                           <option value="{{ code }}" data-symbol="{{ c.symbol }}" data-decimals="{{ c.decimals }}" {{ config.currency_code == code ? 'selected' : '' }}>{{ c.label }}</option>
+                        {% endfor %}
+                     </select>
+                  </div>
+
+                  <div class="col-md-6">
+                     <label class="form-label" for="monedas_symbol">{{ __('Símbolo', 'monedas') }}</label>
+                     <input class="form-control" id="monedas_symbol" name="symbol" maxlength="10" value="{{ config.symbol }}" data-monedas-field="symbol" {{ canedit ? '' : 'disabled' }}>
+                  </div>
+
+                  <div class="col-md-6">
+                     <label class="form-label" for="monedas_position">{{ __('Posición del símbolo', 'monedas') }}</label>
+                     <select class="form-select" id="monedas_position" name="symbol_position" data-monedas-field="symbol_position" {{ canedit ? '' : 'disabled' }}>
+                        <option value="before" {{ config.symbol_position == 'before' ? 'selected' : '' }}>{{ __('Antes del valor ($ 1.000)', 'monedas') }}</option>
+                        <option value="after" {{ config.symbol_position == 'after' ? 'selected' : '' }}>{{ __('Después del valor (1.000 $)', 'monedas') }}</option>
+                     </select>
+                  </div>
+
+                  <div class="col-md-6">
+                     <label class="form-label" for="monedas_decimals">{{ __('Decimales a mostrar', 'monedas') }}</label>
+                     <select class="form-select" id="monedas_decimals" name="decimals" data-monedas-field="decimals" {{ canedit ? '' : 'disabled' }}>
+                        {% for d in 0..4 %}
+                           <option value="{{ d }}" {{ config.decimals == d ? 'selected' : '' }}>{{ d }}</option>
+                        {% endfor %}
+                     </select>
+                  </div>
+
+                  <div class="col-md-6">
+                     <label class="form-label" for="monedas_thousands">{{ __('Separador de miles', 'monedas') }}</label>
+                     <select class="form-select" id="monedas_thousands" name="thousands_separator" data-monedas-field="thousands_separator" {{ canedit ? '' : 'disabled' }}>
+                        {% for key, label in thousands_opts %}
+                           <option value="{{ key }}" {{ config.thousands_separator == key ? 'selected' : '' }}>{{ label }}</option>
+                        {% endfor %}
+                     </select>
+                  </div>
+
+                  <div class="col-md-6">
+                     <label class="form-label" for="monedas_decimal">{{ __('Separador decimal', 'monedas') }}</label>
+                     <select class="form-select" id="monedas_decimal" name="decimal_separator" data-monedas-field="decimal_separator" {{ canedit ? '' : 'disabled' }}>
+                        {% for key, label in decimal_opts %}
+                           <option value="{{ key }}" {{ config.decimal_separator == key ? 'selected' : '' }}>{{ label }}</option>
+                        {% endfor %}
+                     </select>
+                  </div>
+
+                  <div class="col-12">
+                     <label class="form-check">
+                        <input class="form-check-input" type="checkbox" name="show_code" value="1" data-monedas-field="show_code" {{ config.show_code ? 'checked' : '' }} {{ canedit ? '' : 'disabled' }}>
+                        <span class="form-check-label">{{ __('Mostrar el código ISO junto al valor (ej. "$ 4.109.900 COP")', 'monedas') }}</span>
+                     </label>
+                  </div>
+
+                  <div class="col-12">
+                     <div class="alert alert-warning d-none" role="alert" data-monedas-same-sep>
+                        {{ __('El separador de miles y el decimal no pueden ser el mismo.', 'monedas') }}
+                     </div>
+                  </div>
+               </div>
+            </div>
+
+            <div class="col-lg-4">
+               <div class="monedas-preview border rounded p-3 bg-light">
+                  <h4 class="mb-3">{{ __('Vista previa', 'monedas') }}</h4>
+                  {% for s in samples %}
+                     <div class="monedas-preview-row">
+                        <div class="text-secondary small">{{ s.label }}</div>
+                        <div class="monedas-preview-value" data-monedas-sample="{{ s.value }}"></div>
+                        <div class="text-secondary small">{{ __('Guardado en BD:', 'monedas') }} {{ s.value|number_format(4, '.', '') }}</div>
+                     </div>
+                  {% endfor %}
+               </div>
+            </div>
+         </div>
+
+         {% if canedit %}
+            <div class="d-flex justify-content-end gap-2 mt-4">
+               {% if is_stored and entities_id != 0 %}
+                  <button type="submit" name="reset" value="1" class="btn btn-outline-secondary">
+                     <i class="ti ti-arrow-back-up me-1" aria-hidden="true"></i>{{ __('Volver a heredar', 'monedas') }}
+                  </button>
+               {% endif %}
+               <button type="submit" name="update" value="1" class="btn btn-primary">
+                  <i class="ti ti-device-floppy me-1" aria-hidden="true"></i>{{ __('Guardar', 'monedas') }}
+               </button>
+            </div>
+         {% endif %}
+      </form>
+   </div>
+</div>
