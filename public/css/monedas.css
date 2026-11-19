@@ -34,3 +34,15 @@
     font-weight: 600;
     font-variant-numeric: tabular-nums;
 }
+
+.monedas-purchase {
+    background: var(--tblr-bg-surface-secondary, #f6f8fb);
+    border: 1px solid var(--tblr-border-color, #dfe3ea);
+    border-radius: 6px;
+    padding: .75rem 1rem;
+}
+
+.monedas-computed {
+    background: var(--tblr-bg-surface-secondary, #eceff3);
+    font-weight: 600;
+}

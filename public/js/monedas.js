@@ -168,6 +168,7 @@
         // El campo original se queda en el formulario, oculto, con el número limpio.
         original.type = 'hidden';
         group.appendChild(original);
+        original.monedasVisible = visible;
 
         visible.addEventListener('input', function () {
             var v = Fmt.parse(visible.value, cfg);
@@ -179,7 +180,177 @@
         });
     }
 
-    var MONEY_LABEL = /(valor|value|vnc|ctp|tco|precio|price|cost)/i;
+    /* ---------- Compra en moneda extranjera ---------- */
+
+    function el(tag, attrs, children) {
+        var node = document.createElement(tag);
+        Object.keys(attrs || {}).forEach(function (k) {
+            if (k === 'text') {
+                node.textContent = attrs[k];
+            } else if (k === 'className') {
+                node.className = attrs[k];
+            } else {
+                node.setAttribute(k, attrs[k]);
+            }
+        });
+        (children || []).forEach(function (c) { node.appendChild(c); });
+        return node;
+    }
+
+    /** Decimales para mostrar una tasa: entre 2 y 6, según los que tenga. */
+    function rateDecimals(rate) {
+        var s = String(rate);
+        var i = s.indexOf('.');
+        var d = i === -1 ? 0 : s.length - i - 1;
+        return Math.max(2, Math.min(6, d));
+    }
+
+    function formatRate(rate, cfg) {
+        return Fmt.amount(rate, Object.assign({}, cfg, { decimals: rateDecimals(rate) }));
+    }
+
+    function enhancePurchase(form, cfg) {
+        var valueInput = form.querySelector('input[name="value"]');
+        if (!valueInput || !valueInput.monedasVisible || form.querySelector('.monedas-purchase')) {
+            return;
+        }
+        var currencies = cfg.foreign_currencies || [];
+        if (!currencies.length) {
+            return;
+        }
+
+        var visibleValue = valueInput.monedasVisible;
+        var locked = visibleValue.disabled || visibleValue.readOnly;
+        var purchase = cfg.purchase;
+        var byCode = {};
+        currencies.forEach(function (c) { byCode[c.code] = c; });
+        if (purchase && !byCode[purchase.currency_code]) {
+            // Moneda guardada que ya no está en la lista (ej. cambió la moneda local).
+            byCode[purchase.currency_code] = { code: purchase.currency_code, name: '', symbol: purchase.currency_code, decimals: 2 };
+            currencies = currencies.concat([byCode[purchase.currency_code]]);
+        }
+
+        var uid = 'monedas_' + Math.random().toString(36).slice(2, 8);
+
+        // Selector de moneda de compra.
+        var select = el('select', { className: 'form-select', id: uid + '_cur', name: '_monedas_currency' }, [
+            el('option', { value: cfg.currency_code, text: cfg.currency_code + ' – moneda local' })
+        ].concat(currencies.map(function (c) {
+            return el('option', { value: c.code, text: c.code + (c.name ? ' – ' + c.name : '') });
+        })));
+
+        // Valor en moneda extranjera (visible con formato + oculto con el número).
+        var origSymbol = el('span', { className: 'input-group-text' });
+        var origVisible = el('input', { className: 'form-control monedas-amount', id: uid + '_orig', inputmode: 'decimal', autocomplete: 'off' });
+        var origHidden = el('input', { type: 'hidden', name: '_monedas_original_value' });
+
+        var rateVisible = el('input', { className: 'form-control monedas-amount', id: uid + '_rate', inputmode: 'decimal', autocomplete: 'off' });
+        var rateHidden = el('input', { type: 'hidden', name: '_monedas_rate' });
+        var rateLocal = el('span', { className: 'input-group-text', text: cfg.symbol });
+
+        var dateInput = el('input', { type: 'date', className: 'form-control', id: uid + '_date', name: '_monedas_rate_date' });
+
+        var origLabel = el('label', { className: 'form-label', for: uid + '_orig', text: 'Valor de compra' });
+        var rateLabel = el('label', { className: 'form-label', for: uid + '_rate', text: 'Tasa de cambio' });
+        var helper = el('div', { className: 'monedas-purchase-helper small mt-2', role: 'status' });
+
+        var foreignCols = [
+            el('div', { className: 'col-md-3' }, [origLabel, el('div', { className: 'input-group' }, [origSymbol, origVisible]), origHidden]),
+            el('div', { className: 'col-md-3' }, [rateLabel, el('div', { className: 'input-group' }, [rateLocal, rateVisible]), rateHidden]),
+            el('div', { className: 'col-md-3' }, [el('label', { className: 'form-label', for: uid + '_date', text: 'Fecha de la tasa' }), dateInput])
+        ];
+
+        var panel = el('div', { className: 'monedas-purchase col-12 mb-3' }, [
+            el('div', { className: 'row g-2 align-items-end' }, [
+                el('div', { className: 'col-md-3' }, [
+                    el('label', { className: 'form-label', for: uid + '_cur', text: 'Moneda de compra' }),
+                    select
+                ])
+            ].concat(foreignCols)),
+            helper
+        ]);
+
+        [select, origVisible, rateVisible, dateInput].forEach(function (i) { i.disabled = locked; });
+
+        // Valores iniciales.
+        if (purchase) {
+            var pc = byCode[purchase.currency_code];
+            select.value = purchase.currency_code;
+            origVisible.value = Fmt.amount(purchase.original_value, Object.assign({}, cfg, { decimals: pc.decimals }));
+            rateVisible.value = formatRate(purchase.exchange_rate, cfg);
+            dateInput.value = purchase.rate_date || cfg.buy_date || '';
+        } else {
+            select.value = cfg.currency_code;
+            dateInput.value = cfg.buy_date || '';
+        }
+
+        function update() {
+            var code = select.value;
+            var foreign = code !== cfg.currency_code;
+            foreignCols.forEach(function (c) { c.classList.toggle('d-none', !foreign); });
+            helper.classList.toggle('d-none', !foreign);
+
+            if (!foreign) {
+                origHidden.value = '';
+                rateHidden.value = '';
+                visibleValue.readOnly = locked;
+                visibleValue.classList.remove('monedas-computed');
+                return;
+            }
+
+            var cur = byCode[code];
+            var fcfg = Object.assign({}, cfg, { symbol: cur.symbol, decimals: cur.decimals, currency_code: code });
+            origSymbol.textContent = cur.symbol;
+            origLabel.textContent = 'Valor de compra en ' + code;
+            rateLabel.textContent = 'Tasa: 1 ' + code + ' en ' + cfg.currency_code;
+
+            var orig = Fmt.parse(origVisible.value, cfg);
+            var rate = Fmt.parse(rateVisible.value, cfg);
+            origHidden.value = orig === null ? '' : String(orig);
+            rateHidden.value = rate === null ? '' : String(rate);
+
+            // El precio en moneda local lo calcula el plugin: no se escribe a mano.
+            visibleValue.readOnly = true;
+            visibleValue.classList.add('monedas-computed');
+
+            if (orig !== null && rate !== null && rate > 0) {
+                var local = Math.round(orig * rate * 10000) / 10000;
+                valueInput.value = local.toFixed(4);
+                visibleValue.value = Fmt.amount(local, cfg);
+                helper.className = 'monedas-purchase-helper small mt-2 text-success';
+                helper.textContent = Fmt.full(orig, Object.assign({}, fcfg, { show_code: true })) + ' × ' +
+                    formatRate(rate, cfg) + ' = ' + Fmt.full(local, Object.assign({}, cfg, { show_code: true })) +
+                    ' — este es el precio que usa la amortización.';
+            } else {
+                helper.className = 'monedas-purchase-helper small mt-2 text-warning';
+                helper.textContent = 'Escribe el valor en ' + code + ' y la tasa de cambio para calcular el precio en ' + cfg.currency_code + '.';
+            }
+        }
+
+        select.addEventListener('change', update);
+        origVisible.addEventListener('input', update);
+        rateVisible.addEventListener('input', update);
+        origVisible.addEventListener('blur', function () {
+            var n = Fmt.parse(origVisible.value, cfg);
+            var cur = byCode[select.value];
+            if (n !== null && cur) {
+                origVisible.value = Fmt.amount(n, Object.assign({}, cfg, { decimals: cur.decimals }));
+            }
+        });
+        rateVisible.addEventListener('blur', function () {
+            var n = Fmt.parse(rateVisible.value, cfg);
+            if (n !== null) {
+                rateVisible.value = formatRate(n, cfg);
+            }
+        });
+
+        var group = visibleValue.closest('.monedas-group');
+        var field = (group && group.closest('.form-field')) || group;
+        field.parentNode.insertBefore(panel, field);
+        update();
+    }
+
+    var MONEY_LABEL =/(valor|value|vnc|ctp|tco|precio|price|cost)/i;
 
     function labelText(form, el) {
         var label = el.id ? form.querySelector('label[for="' + el.id + '"]') : null;
@@ -227,6 +398,7 @@
             AMOUNT_FIELDS.forEach(function (name) {
                 enhanceAmountInput(form, form.querySelector('input[name="' + name + '"]'), cfg);
             });
+            enhancePurchase(form, cfg);
             enhanceReadonly(form, cfg);
         }).catch(function (e) {
             // Si falla, GLPI sigue funcionando igual que sin el plugin.

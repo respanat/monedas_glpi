@@ -8,8 +8,9 @@
 
 use Glpi\Plugin\Hooks;
 use GlpiPlugin\Monedas\Config;
+use GlpiPlugin\Monedas\Purchase;
 
-define('PLUGIN_MONEDAS_VERSION', '0.1.0');
+define('PLUGIN_MONEDAS_VERSION', '0.2.0');
 define('PLUGIN_MONEDAS_MIN_GLPI', '11.0.0');
 define('PLUGIN_MONEDAS_MAX_GLPI', '11.0.99');
 
@@ -38,10 +39,15 @@ function plugin_init_monedas(): void
     $PLUGIN_HOOKS[Hooks::ADD_JAVASCRIPT]['monedas'] = ['js/monedas.js'];
     $PLUGIN_HOOKS[Hooks::ADD_CSS]['monedas']        = ['css/monedas.css'];
 
-    // Red de seguridad: si llega un importe con formato (ej. "4.109.900"),
-    // se convierte a número antes de guardarlo.
-    $PLUGIN_HOOKS[Hooks::PRE_ITEM_ADD]['monedas']    = [Infocom::class => [Config::class, 'normalizeInfocom']];
-    $PLUGIN_HOOKS[Hooks::PRE_ITEM_UPDATE]['monedas'] = [Infocom::class => [Config::class, 'normalizeInfocom']];
+    // Antes de guardar: importes con formato (ej. "4.109.900") pasan a número y,
+    // si la compra fue en moneda extranjera, el precio local = valor × tasa.
+    $PLUGIN_HOOKS[Hooks::PRE_ITEM_ADD]['monedas']    = [Infocom::class => [Purchase::class, 'preSave']];
+    $PLUGIN_HOOKS[Hooks::PRE_ITEM_UPDATE]['monedas'] = [Infocom::class => [Purchase::class, 'preSave']];
+
+    // Después de guardar: registro de la compra en moneda extranjera.
+    $PLUGIN_HOOKS[Hooks::ITEM_ADD]['monedas']    = [Infocom::class => [Purchase::class, 'postSave']];
+    $PLUGIN_HOOKS[Hooks::ITEM_UPDATE]['monedas'] = [Infocom::class => [Purchase::class, 'postSave']];
+    $PLUGIN_HOOKS[Hooks::ITEM_PURGE]['monedas']  = [Infocom::class => [Purchase::class, 'purge']];
 }
 
 function plugin_version_monedas(): array

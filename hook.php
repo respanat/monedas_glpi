@@ -7,6 +7,7 @@
  */
 
 use GlpiPlugin\Monedas\Config;
+use GlpiPlugin\Monedas\Purchase;
 
 function plugin_monedas_install(): bool
 {
@@ -42,6 +43,25 @@ function plugin_monedas_install(): bool
         $DB->insert($table, Config::DEFAULTS + ['entities_id' => 0]);
     }
 
+    // v0.2: compras en moneda extranjera (una fila por Infocom).
+    $table = Purchase::getTable();
+    if (!$DB->tableExists($table)) {
+        $DB->doQuery(
+            "CREATE TABLE `$table` (
+                `id` int {$sign} NOT NULL AUTO_INCREMENT,
+                `infocoms_id` int {$sign} NOT NULL DEFAULT '0',
+                `currency_code` varchar(3) NOT NULL,
+                `original_value` decimal(20,4) NOT NULL DEFAULT '0.0000',
+                `exchange_rate` decimal(20,6) NOT NULL DEFAULT '0.000000',
+                `rate_date` date DEFAULT NULL,
+                `date_mod` timestamp NULL DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `infocoms_id` (`infocoms_id`),
+                KEY `currency_code` (`currency_code`)
+            ) ENGINE=InnoDB DEFAULT CHARSET={$charset} COLLATE={$collation} ROW_FORMAT=DYNAMIC"
+        );
+    }
+
     $migration->executeMigration();
     return true;
 }
@@ -51,9 +71,10 @@ function plugin_monedas_uninstall(): bool
     /** @var DBmysql $DB */
     global $DB;
 
-    $table = Config::getTable();
-    if ($DB->tableExists($table)) {
-        $DB->doQuery("DROP TABLE `$table`");
+    foreach ([Config::getTable(), Purchase::getTable()] as $table) {
+        if ($DB->tableExists($table)) {
+            $DB->doQuery("DROP TABLE `$table`");
+        }
     }
     return true;
 }
