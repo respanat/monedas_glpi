@@ -17,8 +17,6 @@ use Session;
 
 class Config extends CommonDBTM
 {
-    public static $rightname = 'config';
-
     /** Valores con los que se crea la configuración de la entidad raíz. */
     public const DEFAULTS = [
         'currency_code'       => 'COP',
@@ -299,6 +297,15 @@ class Config extends CommonDBTM
     }
 
     /**
+     * GLPI 11 valida formularios con un token oculto; GLPI 12 usa las cabeceras
+     * del navegador y pide que los plugins ya no envíen el token.
+     */
+    public static function needsCsrfToken(): bool
+    {
+        return defined('GLPI_VERSION') && version_compare(GLPI_VERSION, '12.0.0-dev', '<');
+    }
+
+    /**
      * URL pública del plugin (GLPI 11 sirve los plugins bajo /plugins/<clave>).
      */
     public static function getPluginUrl(string $path = ''): string
@@ -336,6 +343,8 @@ class Config extends CommonDBTM
             'is_stored'       => $stored !== null,
             'inherited_name'  => $inherited_name,
             'canedit'         => Session::haveRight('config', UPDATE),
+            // GLPI 11 necesita el token CSRF en el formulario; GLPI 12 lo prohíbe.
+            'use_csrf_token'  => self::needsCsrfToken(),
             'currencies'      => $currencies,
             'thousands_opts'  => [
                 'dot'   => __('Punto (1.000.000)', 'monedas'),

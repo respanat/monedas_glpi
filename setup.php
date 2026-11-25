@@ -2,6 +2,7 @@
 
 /**
  * Monedas - Formato de moneda para la información financiera de GLPI.
+ * Compatible con GLPI 11 y GLPI 12.
  *
  * @license GPL-3.0-or-later
  */
@@ -10,9 +11,9 @@ use Glpi\Plugin\Hooks;
 use GlpiPlugin\Monedas\Config;
 use GlpiPlugin\Monedas\Purchase;
 
-define('PLUGIN_MONEDAS_VERSION', '0.2.0');
+define('PLUGIN_MONEDAS_VERSION', '0.2.1');
 define('PLUGIN_MONEDAS_MIN_GLPI', '11.0.0');
-define('PLUGIN_MONEDAS_MAX_GLPI', '11.0.99');
+define('PLUGIN_MONEDAS_MAX_GLPI', '12.0.99');
 
 /**
  * Registro del plugin: pestaña en Entidades, JS/CSS y normalización de importes.
@@ -20,8 +21,6 @@ define('PLUGIN_MONEDAS_MAX_GLPI', '11.0.99');
 function plugin_init_monedas(): void
 {
     global $PLUGIN_HOOKS;
-
-    $PLUGIN_HOOKS['csrf_compliant']['monedas'] = true;
 
     if (!Plugin::isPluginActive('monedas')) {
         return;

@@ -1,6 +1,6 @@
 # Monedas para GLPI
 
-Plugin para **GLPI 11** que muestra la información financiera de los activos con la moneda local y el formato de cada país, en lugar de los números crudos de la base de datos.
+Plugin para **GLPI 11 y GLPI 12** que muestra la información financiera de los activos con la moneda local y el formato de cada país, en lugar de los números crudos de la base de datos.
 
 | Hoy en GLPI | Con el plugin |
 |---|---|
@@ -14,6 +14,15 @@ Plugin para **GLPI 11** que muestra la información financiera de los activos co
 - **No cambia los datos guardados**: el formato se aplica solo en pantalla. En la base de datos se sigue guardando el número limpio (`4109900.0000`), así que desinstalar el plugin no rompe nada.
 - **Red de seguridad en el servidor**: si llega un importe con formato (por ejemplo `4.109.900`), el plugin lo convierte a número antes de guardarlo.
 - **Compras en moneda extranjera (v0.2)**: en la ficha financiera aparece *Moneda de compra*. Si eliges, por ejemplo, USD, escribes el valor en dólares, la tasa de cambio y su fecha (por defecto, la fecha de compra). El precio de compra en moneda local se calcula solo (`US$ 1.025,00 × 4.009,66 = $ 4.109.902 COP`) y es el que usa la amortización. El cálculo se repite en el servidor al guardar, así que no depende del navegador. Si vuelves a la moneda local, se borra el registro de la compra en moneda extranjera.
+
+## Compatibilidad
+
+| GLPI | PHP | Estado |
+|---|---|---|
+| 11.0.x | 8.2+ | Soportado |
+| 12.0.x | 8.3+ | Soportado desde la v0.2.1 |
+
+En GLPI 12 el formulario de configuración ya no envía el token CSRF oculto (GLPI 12 valida con las cabeceras del navegador); en GLPI 11 lo sigue enviando. El plugin detecta la versión solo.
 
 ## Actualizar desde una versión anterior
 

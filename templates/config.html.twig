@@ -23,7 +23,9 @@
       {% endif %}
 
       <form method="post" action="{{ form_url }}">
-         <input type="hidden" name="_glpi_csrf_token" value="{{ csrf_token() }}">
+         {% if use_csrf_token %}
+            <input type="hidden" name="_glpi_csrf_token" value="{{ csrf_token() }}">
+         {% endif %}
          <input type="hidden" name="entities_id" value="{{ entities_id }}">
 
          <div class="row g-4">

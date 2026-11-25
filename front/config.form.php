@@ -12,6 +12,10 @@ Session::checkRight('config', UPDATE);
 
 $entities_id = (int) ($_POST['entities_id'] ?? -1);
 if ($entities_id < 0 || !Session::haveAccessToEntity($entities_id)) {
+    // Html::displayRightError() ya no existe en GLPI 12.
+    if (class_exists(\Glpi\Exception\Http\AccessDeniedHttpException::class)) {
+        throw new \Glpi\Exception\Http\AccessDeniedHttpException();
+    }
     Html::displayRightError();
 }
 

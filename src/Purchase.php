@@ -19,8 +19,6 @@ use Session;
 
 class Purchase extends CommonDBTM
 {
-    public static $rightname = 'infocom';
-
     /** Campos extra que el formulario envía junto con el Infocom. */
     public const INPUT_CURRENCY = '_monedas_currency';
     public const INPUT_ORIGINAL = '_monedas_original_value';
